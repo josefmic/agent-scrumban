@@ -97,69 +97,106 @@ struct BoardView: View {
         .background(IconOnlyToolbar().frame(width: 0, height: 0))
     }
 
+    private static let minimumColumnWidth: CGFloat = 210
+    private static let columnSpacing: CGFloat = 8
+    private static let boardInset: CGFloat = 10
+    private static let headerHeight: CGFloat = 26
+
+    private func columnWidth(for viewport: CGSize) -> CGFloat {
+        let count = CGFloat(model.columns.count)
+        guard count > 0 else { return Self.minimumColumnWidth }
+
+        let gaps = Self.columnSpacing * (count - 1) + Self.boardInset * 2
+        return max(Self.minimumColumnWidth, (viewport.width - gaps) / count)
+    }
+
     private var board: some View {
-        ScrollView(.horizontal) {
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(model.columns) { column in
-                    lane(column)
-                }
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
+        GeometryReader { proxy in
+            let width = columnWidth(for: proxy.size)
 
-    private func lane(_ column: BoardColumnModel) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ColumnHeader(name: column.name, visible: column.cards.count, total: column.total)
-                .padding(.horizontal, 2)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.bar)
-
-            cards(column)
-        }
-        .frame(width: 210)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(.quaternary.opacity(0.4))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func cards(_ column: BoardColumnModel) -> some View {
-        ScrollView(.vertical) {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(column.cards) { card in
-                    CardView(
-                        card: card,
-                        isFocused: model.isFocused(card),
-                        onOpen: { Task { await model.focus(card) } },
-                        onFocusSession: { session in
-                            guard let path = card.worktreePath else { return }
-                            Task { await model.focus(session, in: path) }
-                        },
-                        onStartWork: {
-                            model.startWork(
-                                on: card,
-                                repositoryPath: repositoryPath,
-                                branch: StartWork.branch(
-                                    template: branchTemplate,
-                                    issueKey: card.issueKey ?? "",
-                                    summary: card.summary
-                                ),
-                                baseBranch: baseBranch
-                            )
-                        },
-                        onMove: {
-                            Task {
-                                transitions = await model.loadTransitions(for: card)
-                                moving = card
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section {
+                        HStack(alignment: .top, spacing: Self.columnSpacing) {
+                            ForEach(model.columns) { column in
+                                cards(column, width: width)
                             }
                         }
-                    )
+                        .frame(minHeight: proxy.size.height - Self.headerHeight, alignment: .top)
+                        .background(alignment: .topLeading) { backdrop(width: width) }
+                        .padding(.horizontal, Self.boardInset)
+                    } header: {
+                        HStack(spacing: Self.columnSpacing) {
+                            ForEach(model.columns) { column in
+                                header(column, width: width)
+                            }
+                        }
+                        .padding(.horizontal, Self.boardInset)
+                    }
                 }
+                .frame(
+                    minWidth: proxy.size.width,
+                    minHeight: proxy.size.height,
+                    alignment: .topLeading
+                )
+                .background(ScrollerCorner().frame(width: 0, height: 0))
             }
-            .padding(6)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func backdrop(width: CGFloat) -> some View {
+        HStack(spacing: Self.columnSpacing) {
+            ForEach(model.columns) { _ in
+                UnevenRoundedRectangle(bottomLeadingRadius: 8, bottomTrailingRadius: 8)
+                    .fill(.quaternary.opacity(0.4))
+                    .frame(width: width)
+            }
+        }
+    }
+
+    private func header(_ column: BoardColumnModel, width: CGFloat) -> some View {
+        ColumnHeader(name: column.name, visible: column.cards.count, total: column.total)
+            .padding(.horizontal, 6)
+            .frame(width: width, height: Self.headerHeight, alignment: .leading)
+            .background(.quaternary.opacity(0.4))
+            .background(.bar)
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8))
+    }
+
+    private func cards(_ column: BoardColumnModel, width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(column.cards) { card in
+                CardView(
+                    card: card,
+                    isFocused: model.isFocused(card),
+                    onOpen: { Task { await model.focus(card) } },
+                    onFocusSession: { session in
+                        guard let path = card.worktreePath else { return }
+                        Task { await model.focus(session, in: path) }
+                    },
+                    onStartWork: {
+                        model.startWork(
+                            on: card,
+                            repositoryPath: repositoryPath,
+                            branch: StartWork.branch(
+                                template: branchTemplate,
+                                issueKey: card.issueKey ?? "",
+                                summary: card.summary
+                            ),
+                            baseBranch: baseBranch
+                        )
+                    },
+                    onMove: {
+                        Task {
+                            transitions = await model.loadTransitions(for: card)
+                            moving = card
+                        }
+                    }
+                )
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 6)
+        .frame(width: width, alignment: .topLeading)
     }
 }
