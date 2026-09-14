@@ -4,6 +4,10 @@ import SwiftUI
 struct ScrumbanApp: App {
     @StateObject private var model = BoardViewModel()
 
+    init() {
+        UserDefaults.standard.register(defaults: ["AppleShowScrollBars": "Always"])
+    }
+
     var body: some Scene {
         WindowGroup("agent-scrumban") {
             BoardView(model: model)

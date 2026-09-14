@@ -20,6 +20,5 @@ struct ColumnHeader: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 4)
     }
 }
