@@ -24,6 +24,7 @@ struct BoardBackground: View {
                 WindowBackdrop()
             }
         }
+        .ignoresSafeArea()
         .onReceive(
             NSWorkspace.shared.notificationCenter
                 .publisher(for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification)
@@ -42,5 +43,24 @@ struct IconOnlyToolbar: NSViewRepresentable {
 
     func updateNSView(_ view: NSView, context: Context) {
         view.window?.toolbar?.displayMode = .iconOnly
+    }
+}
+
+struct BoardScrollers: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { apply(from: view) }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        apply(from: view)
+    }
+
+    private func apply(from view: NSView) {
+        guard let scrollView = view.enclosingScrollView else { return }
+        scrollView.drawsBackground = false
+        scrollView.backgroundColor = .clear
+        scrollView.autohidesScrollers = true
     }
 }

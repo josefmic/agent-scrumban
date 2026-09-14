@@ -33,7 +33,7 @@ struct CardView: View {
         return points == points.rounded() ? String(Int(points)) : String(points)
     }
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: BoardMetrics.cardCorner) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6) }
 
     private var fill: AnyShapeStyle {
         if isFocused { return AnyShapeStyle(Color.accentColor.opacity(0.16)) }
@@ -45,7 +45,7 @@ struct CardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BoardMetrics.cardRowGap) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(card.summary).font(.callout).lineLimit(3)
 
             if let chip {
@@ -90,7 +90,7 @@ struct CardView: View {
             }
 
             if card.branch != nil || changes != nil || !sessions.isEmpty {
-                Divider().padding(.vertical, 1)
+                Divider().padding(.vertical, 3)
             }
 
             if card.branch != nil || changes != nil {
@@ -116,7 +116,7 @@ struct CardView: View {
                 sessionRow(session)
             }
         }
-        .padding(BoardMetrics.cardPadding)
+        .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(fill, in: shape)
         .background(.background, in: shape)
