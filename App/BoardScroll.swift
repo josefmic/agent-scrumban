@@ -47,14 +47,16 @@ struct BoardScroll<CardContent: View>: View {
                         }
                         .padding(.horizontal, Self.inset)
                         .padding(.top, Self.inset)
-                        .background(.bar)
-                        .background(Color(nsColor: .windowBackgroundColor))
+                        .background(BoardBackground())
                         .zIndex(1)
                     }
                 }
                 .background(BoardScrollers(viewport: viewport).frame(width: 0, height: 0))
             }
             .defaultScrollAnchor(.topLeading)
+            .background {
+                BoardBackground().padding(.top, Self.inset + Self.headerHeight)
+            }
         }
     }
 

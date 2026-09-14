@@ -96,7 +96,7 @@ struct BoardView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackground())
+        .background { if phase != .board { BoardBackground() } }
         .background(IconOnlyToolbar().frame(width: 0, height: 0))
     }
 

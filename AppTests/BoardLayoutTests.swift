@@ -238,6 +238,39 @@ final class BoardLayoutTests: XCTestCase {
         }
     }
 
+    private func onScreen(_ window: NSWindow) -> NSBitmapImageRep? {
+        window.level = .floating
+        window.orderFront(nil)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        defer { window.orderOut(nil) }
+
+        let id = CGWindowID(window.windowNumber)
+        let options: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
+        guard let shot = CGWindowListCreateImage(.null, .optionIncludingWindow, id, options) else { return nil }
+        return NSBitmapImageRep(cgImage: shot)
+    }
+
+    func testTheHeaderIsTheSameColourAsTheBoardBeneathIt() throws {
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let window = board(columns(4) { $0 == 0 ? 40 : 1 }, appearance: appearance)
+            _ = layout(window, at: CGSize(width: 1200, height: 700))
+
+            let image = try XCTUnwrap(onScreen(window), "no window image in \(appearance.rawValue)")
+            let chrome = image.pixelsHigh - Int(window.contentView!.frame.height)
+            let margin = Int(BoardScroll<EmptyView>.inset) / 2
+            let strip = chrome + margin
+            let lanes = chrome + Int(BoardScroll<EmptyView>.inset + BoardScroll<EmptyView>.headerHeight) + 40
+
+            let above = try XCTUnwrap(image.colorAt(x: margin, y: strip))
+            let below = try XCTUnwrap(image.colorAt(x: margin, y: lanes))
+
+            XCTAssertEqual(
+                above, below,
+                "header strip \(above) differs from the board \(below) in \(appearance.rawValue)"
+            )
+        }
+    }
+
     func testRelayoutAtTheSameSizeNeverMoves() {
         let window = board(columns(10) { $0 == 0 ? 40 : $0 % 3 })
 
