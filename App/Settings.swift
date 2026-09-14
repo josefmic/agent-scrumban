@@ -29,9 +29,15 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Jira") {
-                TextField("Site", text: $site, prompt: Text("https://example.atlassian.net"))
-                TextField("Email", text: $email)
-                TextField("Project key", text: $projectKey, prompt: Text("ABC"))
+                required(site) {
+                    TextField("Site", text: $site, prompt: Text("https://example.atlassian.net"))
+                }
+                required(email) {
+                    TextField("Email", text: $email)
+                }
+                required(projectKey) {
+                    TextField("Project key", text: $projectKey, prompt: Text("ABC"))
+                }
                 TextField("Filter (JQL)", text: $jql, prompt: Text("assignee = currentUser()"))
             }
 
@@ -71,6 +77,18 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 420)
         .task(id: email) { await refresh() }
+    }
+
+    private func required(_ value: String, @ViewBuilder field: () -> some View) -> some View {
+        HStack(spacing: 6) {
+            field()
+
+            if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Image(systemName: "exclamationmark.circle")
+                    .foregroundStyle(.secondary)
+                    .help("The board cannot load until this is filled in")
+            }
+        }
     }
 
     private var status: String {

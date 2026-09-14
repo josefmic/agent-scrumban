@@ -5,6 +5,9 @@ import ScrumbanCore
 final class BoardViewModel: ObservableObject {
     @Published private(set) var columns: [BoardColumnModel] = []
     @Published private(set) var focusedWorktree: String?
+    @Published private(set) var worktreeCount = 0
+    @Published private(set) var loaded = false
+    @Published private(set) var hasToken = false
     @Published var errorMessage: String?
     var baseBranch = GitReader.defaultBaseBranch
 
@@ -24,6 +27,7 @@ final class BoardViewModel: ObservableObject {
 
     private let activator: AppActivating
     private let opener: URLOpening
+    private nonisolated let runner: CommandRunner
 
     init(
         activator: AppActivating = WorkspaceActivator(),
@@ -32,6 +36,7 @@ final class BoardViewModel: ObservableObject {
     ) {
         self.activator = activator
         self.opener = opener
+        self.runner = runner
         worker = BoardWorker(runner: runner)
         driver = SupacodeDriver(runner: runner)
     }
@@ -57,12 +62,14 @@ final class BoardViewModel: ObservableObject {
 
     func refreshTruth() async {
         do {
-            columns = try await worker.board(
+            let snapshot = try await worker.board(
                 columns: jiraColumns,
                 issues: issues,
                 allIssues: unfilteredIssues,
                 baseBranch: baseBranch
             )
+            columns = snapshot.columns
+            worktreeCount = snapshot.worktrees
             focusedWorktree = try await worker.focusedWorktree()
         } catch {
             report(error)
@@ -118,7 +125,15 @@ final class BoardViewModel: ObservableObject {
         self.jiraColumns = jiraColumns
         self.issues = issues
         unfilteredIssues = allIssues
+        loaded = true
         await refreshTruth()
+    }
+
+    func checkToken(email: String) async {
+        let runner = runner
+        hasToken = await Task.detached {
+            JiraCredentials.hasStoredToken(runner: runner, email: email)
+        }.value
     }
 
     func configureJira(
@@ -129,6 +144,7 @@ final class BoardViewModel: ObservableObject {
         runner: CommandRunner = SystemCommandRunner(),
         session: URLSession = .shared
     ) async {
+        errorMessage = nil
         do {
             let credentials = try await Task.detached {
                 try JiraCredentials.load(runner: runner, site: site, email: email)

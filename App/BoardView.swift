@@ -4,6 +4,9 @@ import ScrumbanCore
 struct BoardView: View {
     @ObservedObject var model: BoardViewModel
 
+    @AppStorage(SettingsKey.site) private var site = ""
+    @AppStorage(SettingsKey.email) private var email = ""
+    @AppStorage(SettingsKey.projectKey) private var projectKey = ""
     @AppStorage(SettingsKey.repositoryPath) private var repositoryPath = ""
     @AppStorage(SettingsKey.baseBranch) private var baseBranch = GitReader.defaultBaseBranch
     @AppStorage(SettingsKey.jql) private var jql = "assignee = currentUser()"
@@ -12,9 +15,24 @@ struct BoardView: View {
     @State private var moving: Card?
     @State private var transitions: [JiraTransition] = []
 
+    private var setup: JiraSetup {
+        JiraSetup(site: site, email: email, projectKey: projectKey, hasToken: model.hasToken)
+    }
+
+    private var phase: BoardPhase {
+        BoardPhase.of(
+            setup: setup,
+            loaded: model.loaded,
+            error: model.errorMessage,
+            columns: model.columns,
+            worktrees: model.worktreeCount
+        )
+    }
+
     var body: some View {
-        board
+        content
             .onChange(of: baseBranch, initial: true) { model.baseBranch = baseBranch }
+            .task(id: "\(site)\u{1}\(email)\u{1}\(projectKey)\u{1}\(jql)") { await connect() }
             .sheet(item: $moving) { card in
                 TransitionSheet(
                     card: card,
@@ -28,7 +46,7 @@ struct BoardView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    if let message = model.errorMessage {
+                    if phase == .board, let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.red)
                             .lineLimit(1)
@@ -48,6 +66,37 @@ struct BoardView: View {
             }
     }
 
+    private func connect(debounce: Duration = .milliseconds(400)) async {
+        try? await Task.sleep(for: debounce)
+        guard !Task.isCancelled else { return }
+
+        await model.checkToken(email: email)
+
+        let setup = setup
+        guard let url = setup.url, setup.isComplete else { return }
+        await model.configureJira(site: url, email: email, projectKey: projectKey, jql: jql)
+    }
+
+    private var content: some View {
+        Group {
+            switch phase {
+            case let .setup(missing):
+                SetupNotice(missing: missing)
+            case .loading:
+                LoadingNotice()
+            case let .failed(message):
+                FailureNotice(message: message) { Task { await connect(debounce: .zero) } }
+            case let .empty(reason):
+                EmptyNotice(reason: reason)
+            case .board:
+                board
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BoardBackground())
+        .background(IconOnlyToolbar().frame(width: 0, height: 0))
+    }
+
     private var board: some View {
         ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 8) {
@@ -58,8 +107,6 @@ struct BoardView: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(BoardBackground())
-        .background(IconOnlyToolbar().frame(width: 0, height: 0))
     }
 
     private func lane(_ column: BoardColumnModel) -> some View {

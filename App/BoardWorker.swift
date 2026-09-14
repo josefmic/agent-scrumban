@@ -1,6 +1,11 @@
 import Foundation
 import ScrumbanCore
 
+struct BoardSnapshot: Sendable {
+    let columns: [BoardColumnModel]
+    let worktrees: Int
+}
+
 actor BoardWorker {
     static let gitInterval: TimeInterval = 30
 
@@ -35,7 +40,7 @@ actor BoardWorker {
         allIssues: [JiraIssue],
         baseBranch: String,
         now: Date = Date()
-    ) throws -> [BoardColumnModel] {
+    ) throws -> BoardSnapshot {
         let worktrees = try truth.snapshot()
 
         if cachedBaseBranch != baseBranch {
@@ -56,13 +61,16 @@ actor BoardWorker {
         }
         if due { lastGitPass = now }
 
-        return BoardModel.build(
-            columns: columns,
-            issues: issues,
-            allIssues: allIssues,
-            worktrees: worktrees,
-            branches: cache.compactMapValues(\.branch),
-            diffstats: cache.mapValues(\.diffstat)
+        return BoardSnapshot(
+            columns: BoardModel.build(
+                columns: columns,
+                issues: issues,
+                allIssues: allIssues,
+                worktrees: worktrees,
+                branches: cache.compactMapValues(\.branch),
+                diffstats: cache.mapValues(\.diffstat)
+            ),
+            worktrees: worktrees.count
         )
     }
 }
