@@ -5,13 +5,25 @@ import ScrumbanCore
 @testable import AgentScrumban
 
 @MainActor
+enum SettingsDefaults {
+    static func override(_ values: [String: String]) {
+        UserDefaults.standard.removeVolatileDomain(forName: UserDefaults.argumentDomain)
+        UserDefaults.standard.setVolatileDomain(values, forName: UserDefaults.argumentDomain)
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeVolatileDomain(forName: UserDefaults.argumentDomain)
+    }
+}
+
+@MainActor
 final class SettingsViewTests: XCTestCase {
     override func setUp() {
-        UserDefaults.standard.set("a@b.cz", forKey: SettingsKey.email)
+        SettingsDefaults.override([SettingsKey.email: "a@b.cz"])
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: SettingsKey.email)
+        SettingsDefaults.clear()
     }
 
     func testOffersASecureFieldForTheToken() throws {
@@ -36,9 +48,7 @@ final class SettingsViewTests: XCTestCase {
 @MainActor
 final class SettingsRequiredFieldTests: XCTestCase {
     override func tearDown() {
-        for key in [SettingsKey.site, SettingsKey.email, SettingsKey.projectKey] {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
+        SettingsDefaults.clear()
     }
 
     private func marker(_ sut: SettingsView) throws -> InspectableView<ViewType.Image> {
@@ -46,15 +56,17 @@ final class SettingsRequiredFieldTests: XCTestCase {
     }
 
     func testMarksARequiredFieldThatIsStillEmpty() throws {
-        UserDefaults.standard.set("a@b.cz", forKey: SettingsKey.email)
+        SettingsDefaults.override([SettingsKey.site: "", SettingsKey.email: "a@b.cz", SettingsKey.projectKey: ""])
 
         XCTAssertNoThrow(try marker(SettingsView(runner: RecordingRunner())))
     }
 
     func testDropsTheMarkerOnceEveryRequiredFieldIsFilledIn() throws {
-        UserDefaults.standard.set("https://example.atlassian.net", forKey: SettingsKey.site)
-        UserDefaults.standard.set("a@b.cz", forKey: SettingsKey.email)
-        UserDefaults.standard.set("ABC", forKey: SettingsKey.projectKey)
+        SettingsDefaults.override([
+            SettingsKey.site: "https://example.atlassian.net",
+            SettingsKey.email: "a@b.cz",
+            SettingsKey.projectKey: "ABC",
+        ])
 
         XCTAssertThrowsError(try marker(SettingsView(runner: RecordingRunner())))
     }
