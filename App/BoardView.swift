@@ -105,48 +105,61 @@ struct BoardView: View {
                 }
             }
             .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
     private func lane(_ column: BoardColumnModel) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             ColumnHeader(name: column.name, visible: column.cards.count, total: column.total)
+                .padding(.horizontal, 2)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.bar)
 
-            ForEach(column.cards) { card in
-                CardView(
-                    card: card,
-                    isFocused: model.isFocused(card),
-                    onOpen: { Task { await model.focus(card) } },
-                    onFocusSession: { session in
-                        guard let path = card.worktreePath else { return }
-                        Task { await model.focus(session, in: path) }
-                    },
-                    onStartWork: {
-                        model.startWork(
-                            on: card,
-                            repositoryPath: repositoryPath,
-                            branch: StartWork.branch(
-                                template: branchTemplate,
-                                issueKey: card.issueKey ?? "",
-                                summary: card.summary
-                            ),
-                            baseBranch: baseBranch
-                        )
-                    },
-                    onMove: {
-                        Task {
-                            transitions = await model.loadTransitions(for: card)
-                            moving = card
-                        }
-                    }
-                )
-            }
-
-            Spacer(minLength: 0)
+            cards(column)
         }
-        .padding(6)
-        .frame(width: 210, alignment: .topLeading)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+        .frame(width: 210)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(.quaternary.opacity(0.4))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func cards(_ column: BoardColumnModel) -> some View {
+        ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 6) {
+                ForEach(column.cards) { card in
+                    CardView(
+                        card: card,
+                        isFocused: model.isFocused(card),
+                        onOpen: { Task { await model.focus(card) } },
+                        onFocusSession: { session in
+                            guard let path = card.worktreePath else { return }
+                            Task { await model.focus(session, in: path) }
+                        },
+                        onStartWork: {
+                            model.startWork(
+                                on: card,
+                                repositoryPath: repositoryPath,
+                                branch: StartWork.branch(
+                                    template: branchTemplate,
+                                    issueKey: card.issueKey ?? "",
+                                    summary: card.summary
+                                ),
+                                baseBranch: baseBranch
+                            )
+                        },
+                        onMove: {
+                            Task {
+                                transitions = await model.loadTransitions(for: card)
+                                moving = card
+                            }
+                        }
+                    )
+                }
+            }
+            .padding(6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

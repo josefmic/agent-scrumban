@@ -7,7 +7,7 @@ struct ScrumbanApp: App {
     var body: some Scene {
         WindowGroup("agent-scrumban") {
             BoardView(model: model)
-                .frame(minWidth: 800, minHeight: 500)
+                .frame(minWidth: 480, minHeight: 360)
                 .onAppear { model.start() }
                 .onDisappear { model.stop() }
         }
