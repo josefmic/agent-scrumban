@@ -46,7 +46,7 @@ struct IconOnlyToolbar: NSViewRepresentable {
     }
 }
 
-struct ScrollerCorner: NSViewRepresentable {
+struct BoardScrollers: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         DispatchQueue.main.async { apply(from: view) }
@@ -61,5 +61,6 @@ struct ScrollerCorner: NSViewRepresentable {
         guard let scrollView = view.enclosingScrollView else { return }
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
+        scrollView.autohidesScrollers = true
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ScrumbanCore
 
 struct BoardView: View {
@@ -64,6 +65,8 @@ struct BoardView: View {
                     .help("Reload columns and issues from Jira")
                 }
             }
+            .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
+            .toolbarBackground(.visible, for: .windowToolbar)
     }
 
     private func connect(debounce: Duration = .milliseconds(400)) async {
@@ -101,18 +104,28 @@ struct BoardView: View {
     private static let columnSpacing: CGFloat = 8
     private static let boardInset: CGFloat = 10
     private static let headerHeight: CGFloat = 26
+    private static let cardSpacing: CGFloat = 6
 
-    private func columnWidth(for viewport: CGSize) -> CGFloat {
+    @MainActor private var scroller: CGFloat {
+        NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+    }
+
+    @MainActor private var inset: CGFloat {
+        max(Self.boardInset, scroller)
+    }
+
+    @MainActor private func columnWidth(for viewport: CGSize) -> CGFloat {
         let count = CGFloat(model.columns.count)
         guard count > 0 else { return Self.minimumColumnWidth }
 
-        let gaps = Self.columnSpacing * (count - 1) + Self.boardInset * 2
+        let gaps = Self.columnSpacing * (count - 1) + inset * 2 + scroller
         return max(Self.minimumColumnWidth, (viewport.width - gaps) / count)
     }
 
     private var board: some View {
         GeometryReader { proxy in
             let width = columnWidth(for: proxy.size)
+            let laneHeight = proxy.size.height - scroller - Self.headerHeight - inset
 
             ScrollView([.horizontal, .vertical]) {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -122,24 +135,20 @@ struct BoardView: View {
                                 cards(column, width: width)
                             }
                         }
-                        .frame(minHeight: proxy.size.height - Self.headerHeight, alignment: .top)
+                        .frame(minHeight: laneHeight, alignment: .top)
                         .background(alignment: .topLeading) { backdrop(width: width) }
-                        .padding(.horizontal, Self.boardInset)
+                        .padding(.horizontal, inset)
+                        .padding(.bottom, inset)
                     } header: {
                         HStack(spacing: Self.columnSpacing) {
                             ForEach(model.columns) { column in
                                 header(column, width: width)
                             }
                         }
-                        .padding(.horizontal, Self.boardInset)
+                        .padding(.horizontal, inset)
                     }
                 }
-                .frame(
-                    minWidth: proxy.size.width,
-                    minHeight: proxy.size.height,
-                    alignment: .topLeading
-                )
-                .background(ScrollerCorner().frame(width: 0, height: 0))
+                .background(BoardScrollers().frame(width: 0, height: 0))
             }
         }
     }
@@ -156,15 +165,16 @@ struct BoardView: View {
 
     private func header(_ column: BoardColumnModel, width: CGFloat) -> some View {
         ColumnHeader(name: column.name, visible: column.cards.count, total: column.total)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, Self.cardSpacing)
             .frame(width: width, height: Self.headerHeight, alignment: .leading)
             .background(.quaternary.opacity(0.4))
             .background(.bar)
+            .background(Color(nsColor: .windowBackgroundColor))
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8))
     }
 
     private func cards(_ column: BoardColumnModel, width: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Self.cardSpacing) {
             ForEach(column.cards) { card in
                 CardView(
                     card: card,
@@ -195,8 +205,8 @@ struct BoardView: View {
                 )
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.top, 6)
+        .padding(.horizontal, Self.cardSpacing)
+        .padding(.vertical, Self.cardSpacing)
         .frame(width: width, alignment: .topLeading)
     }
 }
