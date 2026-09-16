@@ -75,8 +75,6 @@ struct BoardScroll<CardContent: View>: View {
             .padding(.horizontal, Self.cardSpacing)
             .frame(width: width, height: Self.headerHeight, alignment: .leading)
             .background(.quaternary.opacity(0.4))
-            .background(.bar)
-            .background(Color(nsColor: .windowBackgroundColor))
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8))
     }
 
