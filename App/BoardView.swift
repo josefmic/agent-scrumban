@@ -13,8 +13,7 @@ struct BoardView: View {
     @AppStorage(SettingsKey.jql) private var jql = "assignee = currentUser()"
     @AppStorage(SettingsKey.branchTemplate) private var branchTemplate = StartWork.defaultBranchTemplate
 
-    @State private var moving: Card?
-    @State private var transitions: [JiraTransition] = []
+    @State private var sheet: BoardSheet?
 
     private var setup: JiraSetup {
         JiraSetup(site: site, email: email, projectKey: projectKey, hasToken: model.hasToken)
@@ -34,16 +33,35 @@ struct BoardView: View {
         content
             .onChange(of: baseBranch, initial: true) { model.baseBranch = baseBranch }
             .task(id: "\(site)\u{1}\(email)\u{1}\(projectKey)\u{1}\(jql)") { await connect() }
-            .sheet(item: $moving) { card in
-                TransitionSheet(
-                    card: card,
-                    transitions: transitions,
-                    onApply: { transition in
-                        moving = nil
-                        Task { await model.apply(transition, to: card) }
-                    },
-                    onCancel: { moving = nil }
-                )
+            .sheet(item: $sheet) { sheet in
+                switch sheet {
+                case let .move(card, transitions):
+                    TransitionSheet(
+                        card: card,
+                        transitions: transitions,
+                        onApply: { transition in
+                            self.sheet = nil
+                            Task { await model.apply(transition, to: card) }
+                        },
+                        onCancel: { self.sheet = nil }
+                    )
+                case let .start(card, branch):
+                    StartWorkSheet(
+                        card: card,
+                        branch: branch,
+                        base: baseBranch,
+                        onCreate: { branch, base in
+                            self.sheet = nil
+                            model.startWork(
+                                on: card,
+                                repositoryPath: repositoryPath,
+                                branch: branch,
+                                baseBranch: base
+                            )
+                        },
+                        onCancel: { self.sheet = nil }
+                    )
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -105,28 +123,25 @@ struct BoardView: View {
             CardView(
                 card: card,
                 isFocused: model.isFocused(card),
+                issueURL: JiraSetup.issueURL(site: setup.url, issueKey: card.issueKey),
+                onOpenIssue: { model.openInBrowser($0) },
                 onOpen: { Task { await model.focus(card) } },
                 onFocusSession: { session in
                     guard let path = card.worktreePath else { return }
                     Task { await model.focus(session, in: path) }
                 },
                 onStartWork: {
-                    model.startWork(
-                        on: card,
-                        repositoryPath: repositoryPath,
+                    sheet = .start(
+                        card,
                         branch: StartWork.branch(
                             template: branchTemplate,
                             issueKey: card.issueKey ?? "",
                             summary: card.summary
-                        ),
-                        baseBranch: baseBranch
+                        )
                     )
                 },
                 onMove: {
-                    Task {
-                        transitions = await model.loadTransitions(for: card)
-                        moving = card
-                    }
+                    Task { sheet = .move(card, await model.loadTransitions(for: card)) }
                 }
             )
         }

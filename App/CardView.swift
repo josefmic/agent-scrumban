@@ -4,6 +4,8 @@ import ScrumbanCore
 struct CardView: View {
     let card: Card
     var isFocused = false
+    var issueURL: URL?
+    var onOpenIssue: (URL) -> Void = { _ in }
     let onOpen: () -> Void
     let onFocusSession: (AgentSession) -> Void
     let onStartWork: () -> Void
@@ -46,7 +48,22 @@ struct CardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(card.summary).font(.callout).lineLimit(3)
+            HStack(alignment: .top, spacing: 4) {
+                Text(card.summary).font(.callout).lineLimit(3)
+
+                Spacer(minLength: 0)
+
+                if let issueURL {
+                    Button { onOpenIssue(issueURL) } label: {
+                        Image(systemName: "arrow.up.forward.square")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Open in Jira")
+                    .help("Open in Jira")
+                }
+            }
 
             if let chip {
                 EpicChip(epic: chip)

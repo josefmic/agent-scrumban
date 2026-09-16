@@ -39,6 +39,23 @@ struct JiraSetup: Equatable {
     }
 
     var isComplete: Bool { missing.isEmpty }
+
+    static func issueURL(site: URL?, issueKey: String?) -> URL? {
+        guard let site, let issueKey, !issueKey.isEmpty else { return nil }
+        return site.appending(path: "browse").appending(path: issueKey)
+    }
+}
+
+enum BoardSheet: Identifiable {
+    case move(Card, [JiraTransition])
+    case start(Card, branch: String)
+
+    var id: String {
+        switch self {
+        case let .move(card, _): "move/\(card.id)"
+        case let .start(card, _): "start/\(card.id)"
+        }
+    }
 }
 
 enum EmptyBoard: Equatable {

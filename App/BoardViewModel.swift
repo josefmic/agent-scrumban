@@ -198,6 +198,13 @@ final class BoardViewModel: ObservableObject {
         _ = activator.activate(bundleIdentifier: Supacode.bundleIdentifier)
     }
 
+    func openInBrowser(_ url: URL) {
+        guard opener.open(url) else {
+            errorMessage = "Could not open \(url.absoluteString)"
+            return
+        }
+    }
+
     func loadTransitions(for card: Card) async -> [JiraTransition] {
         guard let jira, let key = card.issueKey else { return [] }
         do {

@@ -86,6 +86,38 @@ final class CardViewTests: XCTestCase {
         XCTAssertEqual(clicks.started, 0)
     }
 
+    func testOffersALinkToTheIssueInJira() throws {
+        let opened = Opened()
+        let url = URL(string: "https://x.atlassian.net/browse/ABC-7")!
+        let sut = CardView(
+            card: card(),
+            issueURL: url,
+            onOpenIssue: { opened.urls.append($0) },
+            onOpen: {},
+            onFocusSession: { _ in },
+            onStartWork: {},
+            onMove: {}
+        )
+
+        try sut.inspect().find(ViewType.Button.self, where: {
+            try $0.accessibilityLabel().string() == "Open in Jira"
+        }).tap()
+
+        XCTAssertEqual(opened.urls, [url])
+    }
+
+    func testShowsNoJiraLinkWithoutAnIssueURL() throws {
+        XCTAssertThrowsError(
+            try view(card()).inspect().find(ViewType.Button.self, where: {
+                try $0.accessibilityLabel().string() == "Open in Jira"
+            })
+        )
+    }
+
+    private final class Opened: @unchecked Sendable {
+        var urls: [URL] = []
+    }
+
     private func session(
         _ name: String,
         activity: AgentActivity = .working,
